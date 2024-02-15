@@ -1,0 +1,4 @@
+uvicorn
+fastapi
+pydantic[email]
+motor==2.5.1
