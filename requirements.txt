@@ -1,5 +1,6 @@
 fastapi
 uvicorn[standard]
+pymongo
 python-multipart
 fastapi-login
 passlib[bcrypt]
