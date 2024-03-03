@@ -1,6 +1,7 @@
 fastapi
 uvicorn[standard]
 motor
+pydantic[email]
 pymongo
 python-multipart
 fastapi-login
