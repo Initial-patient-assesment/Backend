@@ -11,6 +11,7 @@ import motor.motor_asyncio
 from bson.objectid import ObjectId
 from fastapi.middleware.cors import CORSMiddleware
 from passlib.handlers.sha2_crypt import sha512_crypt as crypto
+import hashlib 
 
 from sub_app.server.database import (
     add_user,
@@ -34,8 +35,9 @@ class User(BaseModel):
     username: str = Field(...) #should be changed to EmailStr
     hashed_password: str = Field(...)
        
+pass_secret = config('pass_secret')
 #client = pymongo.MongoClient("mongodb://localhost:27017/")
-uri = "mongodb+srv://sseed932:alexapol6044333963@ipa.ciuyw6c.mongodb.net/?retryWrites=true&w=majority&appName=IPA"
+uri = f"mongodb+srv://sseed932:{pass_secret}@ipa.ciuyw6c.mongodb.net/?retryWrites=true&w=majority&appName=IPA"
 client =  MongoClient(uri)
 
 try:
@@ -121,7 +123,7 @@ def token_response(token: str):
     }
     
 def signJWT(user_id: str) -> Dict[str, str]:
-    console.log(user_id)
+    
     payload = {
         "user_id": user_id,
         "expires": time.time() + 300
@@ -229,15 +231,28 @@ def get_user_data(token: token1) -> dict:
 
 #################registration##########################
 
+
+def check_login(username: str):
+    DB = get_users()
+    for user in DB:
+    	if user.get("login") == username:
+   	   				return False
+   	
+    return True
+	
+
 @app.post("/register", tags=["user"])
 async def register_user(user:UserSchema):
-    schema_extra = { 
-     		"name": user.name,
-                "login": user.login,
-                "password": crypto.hash(user.password),
-         	   }
-    new_user = await add_user(schema_extra)
-    return {"message": "User registered successfully"}    
+    if check_login(user.login):
+	    schema_extra = { 
+	     		"name": user.name,
+		        "login": user.login,
+		        "password": crypto.hash(user.password),
+		 	   }
+	    new_user = await add_user(schema_extra)
+	    return {"message": "User registered successfully"}  
+    else:
+    	    return {"message": "Login already registrated"}	      
 
 ##############################################################################
 #optional
