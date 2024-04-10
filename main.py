@@ -658,10 +658,10 @@ async def doc_conf1(conf_data:doc_conf1):
     return requests
 
 
-@app.get("/suggested_events", tags = ['doctor'])
+@app.get("/suggested_events")
 def get_suggested_events():
    # doctor_id = str(decodeJWT(conf_data.token).get("user_id"))
-    doctor_id = '"661664a9626995275fc94a84'
+    doctor_id = '661664a9626995275fc94a84' #ivan
     reqs = get_requests(doctor_id)
     requests = reqs[0]
     returned = []
