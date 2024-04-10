@@ -633,8 +633,8 @@ def get_confirms_user(user_id):
 	return elems
 
 
-@app.get("/events")
-def get_events():
+@app.get("/events_docs", tags = ['doctor'])
+def get_events_docs():
     doctor_id = '6605624ca1b8a7c96dbf7d94'
     reqs = get_confirms(doctor_id)
     requests = reqs[0]
