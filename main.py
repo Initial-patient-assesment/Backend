@@ -722,4 +722,4 @@ def get_docs_by_clinics(clin:clin_name):
     docs = []
     for user in doctor_collection.find({"clinic_name":clin.clinic_name}):
       		 docs.append(doctor_helper_for_user(user))
-    return  docs
+    return  docs[0]
