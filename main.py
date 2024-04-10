@@ -715,11 +715,11 @@ def get_clinics(clin:clin_name):
     clinics = []
     for user in clinic_collection.find({"name":clin.clinic_name}):
       		clinics.append(clinic_helper(user))
-    return clinics
+    return clinics[0]
     
 @app.post("/get_doctors_by_clinic_name", tags=["clinic", "user"])
 def get_docs_by_clinics(clin:clin_name):
     docs = []
     for user in doctor_collection.find({"clinic_name":clin.clinic_name}):
       		 docs.append(doctor_helper_for_user(user))
-    return  docs[0]
+    return  docs
