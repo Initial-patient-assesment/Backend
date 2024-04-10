@@ -89,11 +89,11 @@ class doc_conf1(BaseModel):
             }
         }
 
-###
+'''
 class AppointmentSchema(BaseModel):
     doctor_id: str = Field()
-    request = {"id" : int}
-###
+    request : {"id" : int}
+    '''
 
 class DoctorSchema(BaseModel):
     name: str = Field(...)
