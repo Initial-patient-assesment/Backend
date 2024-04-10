@@ -33,7 +33,6 @@ from sub_app.server.models import (
     UserSchema,
     UpdateUserModel,
     DoctorSchema,
-    AppointmentSchema,
     UpdateAppointModel_User,
     doc_conf,
     doc_conf1,
