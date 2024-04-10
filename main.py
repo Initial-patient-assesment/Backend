@@ -635,7 +635,7 @@ def get_confirms_user(user_id):
 
 @app.get("/events_docs", tags = ['doctor'])
 def get_events_docs():
-    doctor_id = '6605624ca1b8a7c96dbf7d94'
+    doctor_id = '"661664a9626995275fc94a84'
     reqs = get_confirms(doctor_id)
     requests = reqs[0]
     returned = []
@@ -658,10 +658,10 @@ async def doc_conf1(conf_data:doc_conf1):
     return requests
 
 
-@app.get("/suggested_events")
+@app.get("/suggested_events", tags = ['doctor'])
 def get_suggested_events():
    # doctor_id = str(decodeJWT(conf_data.token).get("user_id"))
-    doctor_id = '6605624ca1b8a7c96dbf7d94'
+    doctor_id = '"661664a9626995275fc94a84'
     reqs = get_requests(doctor_id)
     requests = reqs[0]
     returned = []
