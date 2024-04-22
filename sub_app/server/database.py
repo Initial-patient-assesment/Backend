@@ -1,6 +1,9 @@
 import motor.motor_asyncio
 from rich.console import Console
 from bson.objectid import ObjectId
+from random import randint
+import string
+import secrets
 
 MONGO_DETAILS = "mongodb+srv://sseed932:alexapol6044333963@ipa.ciuyw6c.mongodb.net/?retryWrites=true&w=majority&appName=IPA"
 
@@ -30,7 +33,9 @@ def user_helper(user) -> dict:
         "name": user["name"],
         "login": user["login"],
         "password": user["password"],
+        "birth": user['birth'],
     }
+    
 
 console = Console()
 # Retrieve all users present in the database
@@ -56,60 +61,54 @@ async def add_clinic(clinic_data: dict):
     clin = await clinic_collection.insert_one(clinic_data)
     new_clin = await user_collection.find_one({"_id": clin.inserted_id})
     
-
-# Retrieve a user with a matching ID
-async def retrieve_user(id: str) -> dict:
-    user = await user_collection.find_one({"_id": ObjectId(id)})
-    if user:
-        return user_helper(user)
-
-
 async def update_app(data: dict):
-    # Return false if an empty request body is sent.
     doc_id = data.get("doctor_id")
     flag = await appointment_collection.find_one({"doctor_id": doc_id}, {"requests":{"$elemMatch":{ "date": (data.get("request")).get("date"), "user_id": data.get("user_id")}}})
     flag1 = await appointment_collection.find_one({"doctor_id": doc_id}, {"confirms":{"$elemMatch":{ "date": (data.get("request")).get("date"), "user_id": data.get("user_id")}}})
-    flag2 = await appointment_collection.find_one({"doctor_id": doc_id}, {"confirms":{"$elemMatch": { "date": (data.get("request")).get("date"), "time" : (data.get("request")).get("time")}}})
-  
-    flag3 = await appointment_collection.find_one({"doctor_id": doc_id}, {"requests":{"$elemMatch": {"date": (data.get("request")).get("date"),"time" : (data.get("request")).get("time")}}})
-    #console.log(flag2)
+    flag2 = await appointment_collection.find_one({"doctor_id": doc_id}, {"confirms":{"$elemMatch": { "date": (data.get("request")).get("date"), "time" : (data.get("request")).get("time")}}}) 
+    flag3 = await appointment_collection.find_one({"doctor_id": doc_id}, {"requests":{"$elemMatch": {"date": (data.get("request")).get("date"),"time" : (data.get("request")).get("time")}}}) 
     app = await appointment_collection.find_one({"doctor_id": doc_id})
+    alphabet = string.ascii_letters + string.digits
+    key = ''.join(secrets.choice(alphabet) for _ in range(24))
     if app and not (flag.get("requests") or flag1.get("confirms") or flag2.get("confirms") or flag3.get("requests")):
+   
+        updated_app = await appointment_collection.update_one(
+        	{"doctor_id": doc_id}, {"$push": {"requests": {"req_id": key,"date": (data.get("request")).get("date"), "time" : (data.get("request")).get("time"), "user_id": data.get("user_id") }}}
+        )
+        if updated_app:
+            return True
+        return False
+
+        
+async def confirm_appointment1(data: dict):
+    doc_id = data.get("doctor_id")
+    app = await appointment_collection.find_one({"doctor_id": doc_id},{"requests":{"$elemMatch":{"req_id" : data.get("r_id")}}})
+    try:
+    	app = (app.get("requests"))[0]
+    except:
+    	pass
+    console.log(app)
+    if app:
     	
         updated_app = await appointment_collection.update_one(
-        	{"doctor_id": doc_id}, {"$push": {"requests": {"date": (data.get("request")).get("date"), "time" : (data.get("request")).get("time"), "user_id": data.get("user_id") }}}
-        )
+        	{"doctor_id": doc_id}, {"$push": {"confirms": {"con_id": data.get("r_id"),"date": app.get("date"),"time" : app.get("time"),"user_id": app.get("user_id")}}})
+        dele = appointment_collection.update_one({"doctor_id": doc_id}, {"$pull": {"requests":{"req_id" : data.get("r_id")}}})
         if updated_app:
             return True
         return False
-
-async def confirm_appointment(data: dict):
-    doc_id = data.get("doctor_id")
-   # console.log(data.get("date"))
-    app = await appointment_collection.find_one({"doctor_id": doc_id})
-    #console.log("database", data.get("flag")
-    if app:
-        updated_app = await appointment_collection.update_one(
-        	{"doctor_id": doc_id}, {"$push": {"confirms": {"date": (data.get("request")).get("date"),"time" : (data.get("request")).get("time"),"user_id": data.get("user_id")}}}
         
-        )
-        dele = appointment_collection.update_one({"doctor_id": doc_id}, {"$pull": {"requests": {"user_id": data.get("user_id"), "date": (data.get("request")).get("date")}}})
-        if updated_app:
-            return True
-        return False
-
-async def confirm_app(data: dict):
+async def reject_appointment(data: dict):
     doc_id = data.get("doctor_id")
-    app = await appointment_collection.find_one({"doctor_id": doc_id})
-    console.log("database", data.get("flag"))
+    app = await appointment_collection.find_one({"doctor_id": doc_id},{"requests":{"$elemMatch":{"req_id" : data.get("r_id")}}})
+    app = (app.get("requests"))[0]
+    console.log(app)
     if app:
-        updated_app = await appointment_collection.update_one(
-        	{"doctor_id": doc_id,"requests.Confirm": False}, {"$set": {"requests.$.Confirm": data.get("flag")}}
-        )
-        if updated_app:
+        dele = appointment_collection.update_one({"doctor_id": doc_id}, {"$pull": {"requests":{"req_id" : data.get("r_id")}}})
+        if dele:
             return True
         return False
-	
+        
+      
 
 # Update a user with a matching ID
 async def update_user(id: str, data: dict):
