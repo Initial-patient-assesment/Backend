@@ -268,8 +268,6 @@ app.add_middleware(
 # Authentication logic
 # --------------------------------------------------------------------------
 
-
-    
 class DoctorLoginSchema(BaseModel):
     login: str = Field(...)
     password: str = Field(...)
@@ -557,12 +555,6 @@ async def add_appointment_data(upd: UpdateAppointModel_User):
     else:
         return ErrorResponseModel("You can't appoint more than 4 times",444,"error")
 
-def get_requests(doctor_id):
-	elems = []
-	appointment_card = appointment_collection.find({"doctor_id" : doctor_id})
-	for elem in appointment_card:
-			elems.append(app_helper(elem))
-	return elems
 
         
 class r_id(BaseModel):
@@ -660,8 +652,16 @@ def get_confirms(doctor_id):
 	elems = []
 	appointment_card = appointment_collection.find({"doctor_id" : doctor_id})
 	for elem in appointment_card:
-			elems.append(app_helper_conf(elem))
+			elems.append(conf_helper(elem))
 	return elems
+
+def get_requests(doctor_id):
+	elems = []
+	appointment_card = appointment_collection.find({"doctor_id" : doctor_id})
+	for elem in appointment_card:
+			elems.append(app_helper(elem))
+	return elems
+
 
 @app.post("/events_docs", tags=["doctor"])
 def get_events(token:token1):
