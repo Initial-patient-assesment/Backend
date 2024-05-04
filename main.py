@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional 
 from pymongo.mongo_client import MongoClient
-from fastapi import Depends, FastAPI, HTTPException, Request, Response, status, Form, Body
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status, Form, Body, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import time
 import jwt
@@ -16,6 +16,11 @@ from prompts import (get_token, get_chat_completion)
 import json
 from datetime import datetime
 import time
+from pdf.p import create_rep
+from reportlab.platypus import SimpleDocTemplate
+from reportlab.lib.pagesizes import letter
+import io
+from fastapi.responses import StreamingResponse, FileResponse, Response
 
 from sub_app.server.database import (
     add_user,
@@ -80,6 +85,7 @@ def user_helper(user) -> dict:
         "history": user["history"],
         "password": user["password"],
         "doctors_ids":user["doctors_ids"],
+        "convos": user["convos"],
     }
 
     
@@ -136,6 +142,9 @@ def conf_helper(user) -> dict:
 
 def app_helper1(user)->dict:
     return user["requests"]
+    
+def conv_helper(user):
+    return user["convos"]
 
 # Retrieve all users present in the database
 def get_users():
@@ -414,7 +423,7 @@ def get_user_data(token: token1) -> dict:
     data = JWTBearer.get_user(a, token.token)
     if data:
     	res_data = get_user_with_id(data.get("user_id"))
-    	result = {"name" : res_data.get('name'), "login": res_data.get('login'),"birth": res_data.get('birth'),"address": res_data.get('address'), "clinic_id": res_data.get('clinic_id'), "main_doctor_id": res_data.get('main_doctor_id'), "history": res_data.get('history'), "doctors_ids": res_data.get('doctors_ids')}
+    	result = {"name" : res_data.get('name'), "login": res_data.get('login'),"birth": res_data.get('birth'),"address": res_data.get('address'), "clinic_id": res_data.get('clinic_id'), "main_doctor_id": res_data.get('main_doctor_id'), "history": res_data.get('history'), "doctors_ids": res_data.get('doctors_ids'),"convos": res_data.get('convos')}
     	if res_data:
     		return result
     	else:
@@ -491,6 +500,7 @@ async def register_user(user:UserSchema):
 		        "history": [{'name':'', 'time':''}],
 		        "login": user.login,
 		        "password": crypto.hash(user.password),
+		        "convos": [],
 		 	   }
 	    new_user = await add_user(schema_extra)
 	    return {"message": "User registered successfully"}  
@@ -700,6 +710,7 @@ def get_suggested_events(token:token1):
 async def get_events(token:token1):
     doctor_id = str(decodeJWT_doc(token.token).get("user_id"))
     reqs = get_confirms(doctor_id)
+  
     try:
     	requests = reqs[0]
     except:
@@ -713,7 +724,8 @@ async def get_events(token:token1):
     	new = {'username': user, 'birth':user_birth,'user_id': req.get("user_id") }
     	if new not in returned:
     		returned.append(new)
-	
+    	console.log(returned)	
+
     return returned
 	
 def get_confirms_user(user_id):
@@ -764,8 +776,7 @@ async def register_clinic(clin:ClinicSchema):
 		
 	return {"message": "Clinic added successfully"} 
 	
-class clin_name(BaseModel):
-        
+class clin_name(BaseModel):       
 	clinic_name : str
 
 @app.post("/get_clinics_by_name", tags=["clinic", "user"])
@@ -809,7 +820,7 @@ async def send_prompt(pr:prompt):
         prom_history.insert_one(pr_data)
     history = [{
     	'role': 'system',
-    	'content': 'You are a doctor(your name: "GigaDoc", surname: "AIowitch")talking to a real patient. You have to understand the person''s illness and set potential diagnosis by asking questions about their health. After asking many questions about health then ALWAYS ASK the person if they have made an appointment with a dcoctor, if no, ONLY THEN recommend a type of doctor they should visit In the end of each conversation. In the end of each conversation say "Take care! Never reveal diagnosis when asked by the patient - just say that the real doctor will set the diagnosis. Talk about medicine only.'
+    	'content': 'You are a doctor(your name: "GigaDoc", surname: "AIowitch")talking to a real patient. You have to understand the person''s illness and set potential diagnosis by asking questions about their health. After asking many questions about health then ALWAYS ASK the person if they have made an appointment with a dcoctor, if no, ONLY THEN recommend a type of doctor they should visit In the end of each conversation. Never reveal diagnosis when asked by the patient - just say that the real doctor will set the diagnosis. Talk about medicine only. In the end of each conversation say - "Take care!'
 }]
 	
     updated_prom = prom_history.update_one(
@@ -817,6 +828,7 @@ async def send_prompt(pr:prompt):
         	
     strings = 0  	
     his = prom_history.find_one({"user_id": user_id})
+    t = datetime.today().strftime("%d.%m-%H:%M")
     try:
         conv = prom_helper(his)
         for el in conv:
@@ -839,7 +851,7 @@ async def send_prompt(pr:prompt):
         history.append(
         {
         'role':'user',
-        'content':"give several potential diagnosis in one field and only patient'symptomps in another field - this all in json - asked by real doctor"
+        'content':"give several potential diagnosis in one field 'potential_diagnosis' and only patient'symptomps in another field 'patient_symptoms' - this all in json - asked by real doctor"
         }
         )
         diag = get_chat_completion(giga_token, history)
@@ -848,5 +860,36 @@ async def send_prompt(pr:prompt):
         f.write(str(fileinput)+'\n'+'-------------------------------------------------------------------'+"\n")
         f.close()
         prom_history.delete_one({"user_id": user_id})
+        user_collection.update_one({"_id": ObjectId(user_id)}, {"$push": {"convos": {'filename':t, 'convo':fileinput}}})
         
     return {'response': resp_data.split('\n',1)[0]}
+    
+class pdflist(BaseModel):
+    user_id: str
+    
+@app.post("/get_pdfs_list", tags=["doctor"])
+def pdflist(sch:pdflist):
+    convos = user_collection.find({"_id": ObjectId(sch.user_id)})
+    l = []
+    for conv in convos:
+    	l.append(conv_helper(conv))
+    filenames = []
+    for elem in l[0]:
+    	filenames.append(elem["filename"])
+    return filenames
+	
+class forpdf(BaseModel):
+    user_id: str
+    filename: str
+
+@app.post("/get_pdf", tags=["doctor"])
+def pdf(sch:forpdf):
+    datadb = user_collection.find_one({"_id": ObjectId(sch.user_id)}, {"convos":{"$elemMatch":{ "filename": sch.filename}}})
+    data = datadb['convos'][0]['convo']
+    doc = create_rep(data)
+    buf = io.BytesIO() 
+    pdf = SimpleDocTemplate(buf, pagesize=letter,rightMargin=12,leftMargin=36,topMargin=12,bottomMargin=6)
+    pdf.build(doc)
+    buf.seek(0) 
+    headers = {'Content-Disposition': 'attachment; filename="filename.pdf"'}
+    return Response(buf.getvalue(), headers=headers, media_type='application/pdf')
