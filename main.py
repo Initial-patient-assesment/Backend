@@ -828,7 +828,7 @@ async def send_prompt(pr:prompt):
         	
     strings = 0  	
     his = prom_history.find_one({"user_id": user_id})
-    t = datetime.today().strftime("%d.%m-%H:%M")
+    t = datetime.today().strftime("d%d-%m t%H_%M")
     try:
         conv = prom_helper(his)
         for el in conv:
@@ -877,7 +877,8 @@ def pdflist(sch:pdflist):
     for elem in l[0]:
     	filenames.append(elem["filename"])
     return filenames
-	
+
+
 class forpdf(BaseModel):
     user_id: str
     filename: str
@@ -891,5 +892,6 @@ def pdf(sch:forpdf):
     pdf = SimpleDocTemplate(buf, pagesize=letter,rightMargin=12,leftMargin=36,topMargin=12,bottomMargin=6)
     pdf.build(doc)
     buf.seek(0) 
-    headers = {'Content-Disposition': 'attachment; filename="filename.pdf"'}
-    return Response(buf.getvalue(), headers=headers, media_type='application/pdf')
+    
+    return Response(content = buf.getvalue(), headers={'content-disposition': 'attachment','media_type':'application/pdf'})
+
